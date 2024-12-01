@@ -1,0 +1,91 @@
+// PROJECT  : MatrixMadeEZASCII
+// PURPOSE  : Retrieves 8x8 ASCII Character maps from EEPROM to display a message on the MatrixMadeEZ
+// COURSE   : ICS3U-E1
+// AUTHOR   : Nathan Andrew
+// DATE     : 2024-11-30
+// MCU      : 328P (Standalone)
+// STATUS   : Working
+// NOTE     : Font map must be preloaded into EEPROM (EEPROMIntro.ino)
+
+#include <EEPROM.h>
+
+// Pin Definitions
+#define SHIFT_DATA   6   // Data pin for the shift register
+#define SHIFT_CLOCK  5   // Clock pin for the shift register
+#define SHIFT_LATCH  4   // Latch pin for the shift register
+#define POT_SPEED    A1  // Potentiometer input for speed control
+#define POT_DIM      A5  // Potentiometer input for brightness control
+#define PWM_DIM      3   // PWM pin for LED brightness control
+
+// Message to display on the LED matrix
+char msg[] = "Nathan Andrew"; // Message
+uint8_t msgLength = sizeof(msg) - 1; // Length of the message
+uint16_t interval; // Speed control
+
+void setup() {
+  Serial.begin(9600);
+
+  // Initialize shift register pins as outputs
+  pinMode(SHIFT_DATA, OUTPUT);
+  pinMode(SHIFT_CLOCK, OUTPUT);
+  pinMode(SHIFT_LATCH, OUTPUT);
+
+  // Initialize additional control pins for the circuit
+  pinMode(A0, OUTPUT);
+  pinMode(A2, OUTPUT);
+  pinMode(A4, OUTPUT);
+
+  // Set initial states for control pins
+  digitalWrite(A0, LOW);  // Pin A0 is set to LOW
+  digitalWrite(A2, HIGH); // Pin A2 is set to HIGH
+  digitalWrite(A4, LOW);  // Pin A4 is set to LOW
+
+  // Start displaying the message
+  displayMessage();
+}
+
+// Function to display a single character on the LED matrix
+void displayChar(char ch, bool inverted) {
+  uint32_t startTime = millis();                  // Capture the start time
+  uint16_t brightness = analogRead(POT_DIM);      // Read brightness from potentiometer
+  interval = analogRead(POT_SPEED);               // Read speed from potentiometer
+
+  while (millis() - startTime < interval) {       // Display the character for the duration of the interval
+    for (uint8_t row = 0; row < 8; row++) {       // Iterate through each row of the character
+      uint8_t rowData = EEPROM.read(ch * 8 + row); // Read row data from EEPROM
+      if (inverted) {
+        rowData = ~rowData;                       // Invert row data if inverted display is enabled
+      }
+
+      // Send row data to the LED matrix
+      digitalWrite(SHIFT_LATCH, LOW);             // Disable latch to load new data
+      shiftOut(SHIFT_DATA, SHIFT_CLOCK, LSBFIRST, rowData); // Send column data
+      shiftOut(SHIFT_DATA, SHIFT_CLOCK, LSBFIRST, 1 << row); // Activate the corresponding row
+      digitalWrite(SHIFT_LATCH, HIGH);            // Enable latch to display data
+
+      delayMicroseconds(10);                      // Briefly hold the row active
+
+      // Clear the current row
+      digitalWrite(SHIFT_LATCH, LOW);             // Disable latch
+      shiftOut(SHIFT_DATA, SHIFT_CLOCK, LSBFIRST, 0); // Clear column data
+      digitalWrite(SHIFT_LATCH, HIGH);            // Enable latch
+      delayMicroseconds(150);                     // Stabilize before moving to the next row
+    }
+  }
+}
+
+// Function to display the complete message
+void displayMessage() {
+  while (1) {                                     // Loop continuously to display the message
+    for (uint8_t ch = 0; ch < msgLength; ch++) {  // Iterate through each character in the message
+      if (ch < 7) {                               // First 6 characters ("Nathan") are displayed normally
+        displayChar(msg[ch], false);
+      } else {                                    // Remaining characters ("Andrew") are displayed inverted
+        displayChar(msg[ch], true);
+      }
+    }
+  }
+}
+
+void loop() {
+}
