@@ -1,0 +1,54 @@
+// PROJECT  :EEPROM
+// PURPOSE  :
+// COURSE   :ICS3U-E1
+// AUTHOR   :Nathan Andrew
+// DATE     :2024 11 21
+// MCU      :328P (Standalone)
+// STATUS   :Working
+// REFERENCE:
+
+#include "Support.h"
+#include <EEPROM.h>
+
+
+void setup() {
+  Serial.begin(9600);
+  while (!Serial)
+    ;
+  // Serial.println(EEPROM.length());
+  //displayEEPROM(0, 9);
+  // clearEEPROM();
+  // displayEEPROM(0, 9);
+
+  // Load ASCII font map into EEPROM...
+  for (uint8_t ascii = 0; ascii <= 127; ascii++) {
+    uint16_t baseAddress = ascii * 8;  // aka ascii<<3
+    for (uint8_t anodes = 0; anodes <= 7; anodes++)
+      EEPROM.write( baseAddress+anodes, font[ascii][anodes]);
+   //   EEPROM[baseAddress+anodes] = font[ascii][anodes]);
+  }
+
+  // confirm the write was successful...
+  Serial.println(EEPROM.read('A'*8));
+  Serial.println(EEPROM[520]);
+}
+
+void clearEEPROM() {
+  for (uint16_t address = 0; address <= EEPROM.length(); address++)
+    EEPROM.write(address, 0);
+  //  EEPROM[address] = 0
+}
+
+
+void displayEEPROM(uint16_t from, uint16_t to) {
+  for (uint16_t address = from; address <= to; address++) {
+    Serial.print("[");
+    Serial.print(address);
+    Serial.print("]\t");
+    Serial.println(EEPROM.read(address));
+  }
+}
+
+
+void loop() {
+}
